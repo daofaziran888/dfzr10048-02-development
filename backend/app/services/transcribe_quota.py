@@ -1,4 +1,4 @@
-"""__NAME__领域服务：字段、状态和动作来自业务配置，数据处理骨架由基类复用。"""
+"""转写配额校验领域服务：按渠道维护每日转写分钟配额，超额时排队而非丢弃已完成转写，产出配额条目数据集供调度与仲裁消费。"""
 from __future__ import annotations
 
 from app.services.base import BaseModuleService

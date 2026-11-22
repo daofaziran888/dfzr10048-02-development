@@ -1,4 +1,4 @@
-"""__NAME__领域服务：字段、状态和动作来自业务配置，数据处理骨架由基类复用。"""
+"""采集通道采集领域服务：管理通道限速参数与并发拉取，产出通道配置数据集供分片切分消费。"""
 from __future__ import annotations
 
 from app.services.base import BaseModuleService
