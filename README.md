@@ -73,6 +73,15 @@ npm run dev
 | 归档架位 | `archive_shelf` | 归档条目 | 归档编号、关联媒体源、架位标识 |
 | 采集审计 | `media_audit` | 审计条目 | 审计编号、关联对象、操作类型 |
 
+## 字幕偏移试算
+
+- 入口：时间轴标注页的「试算字幕受影响范围」、左侧导航「对齐试算」，或直接访问 `/alignment-trial`。
+- 试算服务固定以原片毫秒为计算基准；交界区间采用左闭右开，踩在交界毫秒上的标注只归入一个区间。
+- 题设样片包含 4000ms 标注与批注原文，第 5、6 行初始试算均为后移 120ms。
+- 「模拟乙的 80ms 更正送达」会登记第 5 行的并发更正（按在 +120ms 基础上回调 80ms 合并，净偏移 +40ms）；甲仍以 R1 版本提交后，第 5 行进入「待再审」，第 6 行可单独生效。
+- 字幕对齐页顶部展示每行实际采纳值；行详情可区分原片标注与人工更正来源，并可在「当前采纳版本 / 原发行版本」间切换，原发行版本始终返回复刻的原始边界。
+- 主要接口：`GET /api/alignment-trial/preview`、`POST /api/alignment-trial/confirm`、`POST /api/alignment-trial/corrections`、`GET /api/alignment-trial/lines/{lineNumber}`。
+
 ## 约定
 
 - 全部模块共享`frontend/src/views/WorkbenchView.vue|tsx`和一套资源路由。

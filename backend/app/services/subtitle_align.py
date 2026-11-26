@@ -3,6 +3,7 @@ from __future__ import annotations
 
 from typing import Any
 
+from app.services.alignment_trial import MEDIA_ID, alignment_trial_service
 from app.services.base import BaseModuleService
 from app.store import store
 
@@ -13,9 +14,36 @@ class SubtitleAlignService(BaseModuleService):
     OPERATION_TERM = "关联"
     LIST_FIELDS = ["对齐编号", "关联分段", "字幕行号", "对齐起始毫秒", "对齐结束毫秒", "偏移毫秒", "对齐方式", "对齐行数"]
     REQUIRED_FIELDS = ["对齐编号", "关联分段", "字幕行号"]
-    STATUS_ORDER = ["待对齐", "对齐中", "已对齐", "偏移超限"]
-    ACTION_RULES = {"启动对齐": "对齐中", "确认对齐": "已对齐", "登记超限": "偏移超限"}
+    STATUS_ORDER = ["待对齐", "对齐中", "已对齐", "待再审", "偏移超限"]
+    ACTION_RULES = {"启动对齐": "对齐中", "确认对齐": "已对齐", "完成再审": "已对齐", "登记超限": "偏移超限"}
     NEGATIVE_ACTIONS = []
+
+    def run_action(self, entry_id: int, action: str) -> tuple[dict[str, Any] | None, str]:
+        """字幕行确认对齐时，让试算领域服务计算实际采纳值和并发来源。"""
+        entry = store.find(self.MODULE, entry_id)
+        if entry is None:
+            return None, f"{self.ENTITY} {entry_id} 不存在或已归档"
+
+        is_trial_line = (
+            entry.get("关联媒体源") == MEDIA_ID
+            or entry.get("媒体标识") == MEDIA_ID
+            or entry.get("line_number") is not None
+        )
+        if action == "完成再审" and is_trial_line:
+            result = alignment_trial_service.complete_review(entry_id, "字幕对齐页")
+            return result.get("entry") or entry, result.get("message", "再审已完成")
+
+        if action == "确认对齐" and is_trial_line:
+            result = alignment_trial_service.confirm({
+                "entry_id": entry_id,
+                "reviewer": "字幕对齐页",
+            })
+            if result.get("ok") and result.get("results"):
+                item = result["results"][0]
+                return item.get("entry") or entry, item["message"]
+            return entry, result.get("message", "对齐确认未生效")
+
+        return super().run_action(entry_id, action)
 
     def check_offset_threshold(self, align_id: str, max_offset: int) -> tuple[bool, str]:
         """检查对齐偏移是否超过阈值。"""

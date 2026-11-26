@@ -6,6 +6,14 @@
         <p class="page-desc">{{ meta.desc }}</p>
       </div>
       <div class="page-actions">
+        <RouterLink
+          v-if="meta.key === 'timeline_mark'"
+          class="btn primary"
+          data-testid="open-trial-view"
+          to="/alignment-trial"
+        >
+          试算字幕受影响范围
+        </RouterLink>
         <button class="btn primary" data-testid="open-create" type="button" @click="openCreate">
           登记{{ meta.entity }}
         </button>
@@ -14,6 +22,8 @@
         </button>
       </div>
     </header>
+
+    <AlignmentAdoptionPanel v-if="meta.key === 'subtitle_align'" ref="adoptionPanel" />
 
     <div class="stat-row">
       <article v-for="item in stats" :key="item.label" class="stat-card">
@@ -50,6 +60,14 @@
           <td v-for="column in meta.fields" :key="column">{{ row[column] ?? '—' }}</td>
           <td>{{ row.status }}</td>
           <td class="row-actions">
+            <RouterLink
+              v-if="meta.key === 'subtitle_align'"
+              class="link"
+              :to="`/subtitle-align/entry/${row.id}`"
+              :data-testid="`detail-${row.id}`"
+            >
+              对齐详情
+            </RouterLink>
             <button
               v-for="action in meta.actions"
               :key="action"
@@ -75,7 +93,7 @@
         <h3>登记{{ meta.entity }}</h3>
         <label v-for="field in meta.fields" :key="field" class="create-field">
           <span>{{ field }}</span>
-          <input v-model="createValues[field]" :data-testid="`create-${field}`" required />
+          <input v-model="createValues[field]" :data-testid="`create-${field}`" :required="meta.fields.slice(0, 3).includes(field)" />
         </label>
         <div class="page-actions">
           <button class="btn" type="button" @click="showCreate = false">取消</button>
@@ -95,7 +113,9 @@
 
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
+import { useRouter } from 'vue-router'
 
+import AlignmentAdoptionPanel from '@/components/AlignmentAdoptionPanel.vue'
 import {
   createEntry,
   downloadEntries,
@@ -106,6 +126,8 @@ import {
 import type { EntryRow } from '@/data/types'
 
 const props = defineProps<{ moduleKey: string }>()
+const router = useRouter()
+const adoptionPanel = ref<InstanceType<typeof AlignmentAdoptionPanel> | null>(null)
 const meta = moduleMeta(props.moduleKey)
 const rows = ref<EntryRow[]>([])
 const total = ref(0)
@@ -167,10 +189,15 @@ async function submitCreate() {
 
 async function runAction(action: string, row: EntryRow) {
   errorMessage.value = ''
+  if (action === '试算影响范围') {
+    await router.push({ path: '/alignment-trial', query: { markRef: String(row.id) } })
+    return
+  }
   try {
     const result = await applyAction(meta.key, Number(row.id), action)
     if (!result.ok) throw new Error(result.message)
     await reload()
+    if (meta.key === 'subtitle_align') await adoptionPanel.value?.reload()
   } catch (error) {
     errorMessage.value = error instanceof Error ? error.message : '操作失败'
   }
